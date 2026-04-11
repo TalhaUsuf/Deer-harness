@@ -7,10 +7,9 @@ configures one backend; the system handles physical separation details.
 SQLite mode: checkpointer and app share a single .db file
 ({sqlite_dir}/deerflow.db) with WAL journal mode enabled on every
 connection. WAL allows concurrent readers and a single writer without
-blocking, making a unified file safe for both workloads.  The
-``busy_timeout`` PRAGMA (set in ``engine.py``) ensures writers wait
-for each other instead of failing immediately when they contend for
-the write lock.
+blocking, making a unified file safe for both workloads.  Writers
+that contend for the lock wait via the default 5-second sqlite3
+busy timeout rather than failing immediately.
 
 Postgres mode: both use the same database URL but maintain independent
 connection pools with different lifecycles.
