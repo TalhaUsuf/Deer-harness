@@ -31,7 +31,7 @@ async def langgraph_runtime(app: FastAPI) -> AsyncGenerator[None, None]:
         async with langgraph_runtime(app):
             yield
     """
-    from deerflow.config import get_app_config
+    from deerflow.config import AppConfig
     from deerflow.persistence.engine import close_engine, get_session_factory, init_engine_from_config
     from deerflow.runtime import make_store, make_stream_bridge
     from deerflow.runtime.checkpointer.async_provider import make_checkpointer
@@ -42,7 +42,7 @@ async def langgraph_runtime(app: FastAPI) -> AsyncGenerator[None, None]:
 
         # Initialize persistence engine BEFORE checkpointer so that
         # auto-create-database logic runs first (postgres backend).
-        config = get_app_config()
+        config = AppConfig.current()
         await init_engine_from_config(config.database)
 
         app.state.checkpointer = await stack.enter_async_context(make_checkpointer())
@@ -126,13 +126,13 @@ def get_run_context(request: Request) -> RunContext:
     ``dataclasses.replace(ctx, follow_up_to_run_id=...)`` before passing it
     to :func:`run_agent`.
     """
-    from deerflow.config import get_app_config
+    from deerflow.config import AppConfig
 
     return RunContext(
         checkpointer=get_checkpointer(request),
         store=get_store(request),
         event_store=get_run_event_store(request),
-        run_events_config=getattr(get_app_config(), "run_events", None),
+        run_events_config=getattr(AppConfig.current(), "run_events", None),
         thread_store=get_thread_store(request),
     )
 

@@ -25,14 +25,14 @@ from deerflow.persistence.user.model import UserRow
 
 
 async def _run(email: str | None) -> int:
-    from deerflow.config import get_app_config
+    from deerflow.config import AppConfig
     from deerflow.persistence.engine import (
         close_engine,
         get_session_factory,
         init_engine_from_config,
     )
 
-    config = get_app_config()
+    config = AppConfig.current()
     await init_engine_from_config(config.database)
     try:
         sf = get_session_factory()
