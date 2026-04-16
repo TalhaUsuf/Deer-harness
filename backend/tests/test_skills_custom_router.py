@@ -189,6 +189,7 @@ def test_update_skill_refreshes_prompt_cache_before_return(monkeypatch, tmp_path
     monkeypatch.setattr("app.gateway.routers.skills.refresh_skills_system_prompt_cache_async", _refresh)
 
     app = FastAPI()
+    app.state.config = _app_cfg
     app.include_router(skills_router.router)
 
     with TestClient(app) as client:

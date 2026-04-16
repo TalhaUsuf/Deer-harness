@@ -1,8 +1,9 @@
 """Memory API router for retrieving and managing global memory data."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.gateway.deps import get_config
 from deerflow.agents.memory.updater import (
     clear_memory_data,
     create_memory_fact,
@@ -295,7 +296,9 @@ async def import_memory(request: MemoryResponse) -> MemoryResponse:
     summary="Get Memory Configuration",
     description="Retrieve the current memory system configuration.",
 )
-async def get_memory_config_endpoint() -> MemoryConfigResponse:
+async def get_memory_config_endpoint(
+    app_config: AppConfig = Depends(get_config),
+) -> MemoryConfigResponse:
     """Get the memory system configuration.
 
     Returns:
@@ -314,7 +317,7 @@ async def get_memory_config_endpoint() -> MemoryConfigResponse:
         }
         ```
     """
-    config = AppConfig.current().memory
+    config = app_config.memory
     return MemoryConfigResponse(
         enabled=config.enabled,
         storage_path=config.storage_path,
@@ -333,13 +336,15 @@ async def get_memory_config_endpoint() -> MemoryConfigResponse:
     summary="Get Memory Status",
     description="Retrieve both memory configuration and current data in a single request.",
 )
-async def get_memory_status() -> MemoryStatusResponse:
+async def get_memory_status(
+    app_config: AppConfig = Depends(get_config),
+) -> MemoryStatusResponse:
     """Get the memory system status including configuration and data.
 
     Returns:
         Combined memory configuration and current data.
     """
-    config = AppConfig.current().memory
+    config = app_config.memory
     memory_data = get_memory_data(user_id=get_effective_user_id())
 
     return MemoryStatusResponse(

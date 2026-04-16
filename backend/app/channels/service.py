@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.channels.base import Channel
 from app.channels.manager import DEFAULT_GATEWAY_URL, DEFAULT_LANGGRAPH_URL, ChannelManager
 from app.channels.message_bus import MessageBus
 from app.channels.store import ChannelStore
+
+if TYPE_CHECKING:
+    from deerflow.config.app_config import AppConfig
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +67,20 @@ class ChannelService:
         self._running = False
 
     @classmethod
-    def from_app_config(cls) -> ChannelService:
-        """Create a ChannelService from the application config."""
-        from deerflow.config.app_config import AppConfig
+    def from_app_config(cls, app_config: AppConfig | None = None) -> ChannelService:
+        """Create a ChannelService from the application config.
 
-        config = AppConfig.current()
+        Pass ``app_config`` explicitly when available (e.g. from Gateway
+        startup). Falls back to ``AppConfig.current()`` for legacy callers;
+        that fallback is removed in Phase 2 task P2-10.
+        """
+        if app_config is None:
+            from deerflow.config.app_config import AppConfig as _AppConfig
+
+            app_config = _AppConfig.current()
         channels_config = {}
         # extra fields are allowed by AppConfig (extra="allow")
-        extra = config.model_extra or {}
+        extra = app_config.model_extra or {}
         if "channels" in extra:
             channels_config = extra["channels"]
         return cls(channels_config=channels_config)

@@ -3,9 +3,10 @@ import logging
 import shutil
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.gateway.deps import get_config
 from app.gateway.path_utils import resolve_thread_virtual_path
 from deerflow.agents.lead_agent.prompt import refresh_skills_system_prompt_cache_async
 from deerflow.config.app_config import AppConfig
@@ -313,7 +314,12 @@ async def get_skill(skill_name: str) -> SkillResponse:
     summary="Update Skill",
     description="Update a skill's enabled status by modifying the extensions_config.json file.",
 )
-async def update_skill(skill_name: str, request: SkillUpdateRequest) -> SkillResponse:
+async def update_skill(
+    skill_name: str,
+    request: SkillUpdateRequest,
+    http_request: Request,
+    app_config: AppConfig = Depends(get_config),
+) -> SkillResponse:
     try:
         skills = load_skills(enabled_only=False)
         skill = next((s for s in skills if s.name == skill_name), None)
@@ -326,7 +332,7 @@ async def update_skill(skill_name: str, request: SkillUpdateRequest) -> SkillRes
             config_path = Path.cwd().parent / "extensions_config.json"
             logger.info(f"No existing extensions config found. Creating new config at: {config_path}")
 
-        ext = AppConfig.current().extensions
+        ext = app_config.extensions
         ext.skills[skill_name] = SkillStateConfig(enabled=request.enabled)
 
         config_data = {
@@ -338,7 +344,11 @@ async def update_skill(skill_name: str, request: SkillUpdateRequest) -> SkillRes
             json.dump(config_data, f, indent=2)
 
         logger.info(f"Skills configuration updated and saved to: {config_path}")
-        AppConfig.init(AppConfig.from_file())
+        # Swap both app.state.config and AppConfig._global so Depends(get_config)
+        # and legacy AppConfig.current() callers see the new config.
+        reloaded = AppConfig.from_file()
+        http_request.app.state.config = reloaded
+        AppConfig.init(reloaded)
         await refresh_skills_system_prompt_cache_async()
 
         skills = load_skills(enabled_only=False)

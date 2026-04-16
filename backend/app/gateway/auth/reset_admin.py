@@ -32,7 +32,8 @@ async def _run(email: str | None) -> int:
         init_engine_from_config,
     )
 
-    config = AppConfig.current()
+    # CLI entry: load config explicitly at the top, pass down through the closure.
+    config = AppConfig.from_file()
     await init_engine_from_config(config.database)
     try:
         sf = get_session_factory()
