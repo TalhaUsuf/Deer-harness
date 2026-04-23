@@ -1,3 +1,6 @@
+<!-- Parent: ../AGENTS.md -->
+<!-- Generated: 2026-04-23 | Updated: 2026-04-23 -->
+
 # Agents Architecture
 
 ## Overview
