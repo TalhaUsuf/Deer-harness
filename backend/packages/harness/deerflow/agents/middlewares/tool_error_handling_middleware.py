@@ -69,6 +69,7 @@ def _build_runtime_middlewares(
     *,
     include_uploads: bool,
     include_dangling_tool_call_patch: bool,
+    include_custom_instructions: bool = False,
     lazy_init: bool = True,
 ) -> list[AgentMiddleware]:
     """Build shared base middlewares for agent execution."""
@@ -85,6 +86,14 @@ def _build_runtime_middlewares(
         from deerflow.agents.middlewares.uploads_middleware import UploadsMiddleware
 
         middlewares.insert(1, UploadsMiddleware())
+
+    if include_custom_instructions:
+        from deerflow.agents.middlewares.custom_instructions_middleware import CustomInstructionsMiddleware
+
+        # Insert right before SandboxMiddleware so the SystemMessage is part of
+        # the message list before any subsequent middleware inspects it.
+        sandbox_idx = next(i for i, mw in enumerate(middlewares) if isinstance(mw, SandboxMiddleware))
+        middlewares.insert(sandbox_idx, CustomInstructionsMiddleware())
 
     if include_dangling_tool_call_patch:
         from deerflow.agents.middlewares.dangling_tool_call_middleware import DanglingToolCallMiddleware
@@ -130,6 +139,7 @@ def build_lead_runtime_middlewares(*, lazy_init: bool = True) -> list[AgentMiddl
     return _build_runtime_middlewares(
         include_uploads=True,
         include_dangling_tool_call_patch=True,
+        include_custom_instructions=True,
         lazy_init=lazy_init,
     )
 
