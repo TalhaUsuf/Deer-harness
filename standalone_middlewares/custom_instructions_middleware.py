@@ -6,15 +6,37 @@ Hook
 ----
 `before_agent` — fires once per agent invocation, before any model call.
 Reads `custom_instructions` from `runtime.context` first, then falls back
-to `langgraph.config.get_config()['configurable']`. If `state.messages`
-already has more than one message (i.e. this is not the first turn), the
-middleware does nothing — the checkpointer has already preserved the
-original instructions across turns. Re-sending instructions on an existing
-thread is logged and silently ignored to keep behaviour stable.
+to `langgraph.config.get_config()['configurable']`.
+
+How "first turn" is detected
+----------------------------
+The middleware checks `not any(m.type == "ai" for m in state["messages"])`
+— i.e. "first turn = no AIMessage has been produced on this thread yet".
+This is intentionally NOT a length check (`len(messages) > 1` would be
+wrong) because state may legitimately contain a SystemMessage or multiple
+HumanMessages before the agent has ever replied:
+
+    [HumanMessage]                       -> first turn (inject)
+    [HumanMessage, AIMessage, ...]       -> NOT first turn (skip)
+    [SystemMessage, HumanMessage]        -> first turn (inject)
+    [HumanMessage, HumanMessage]         -> first turn (inject; e.g. resumed
+                                             after a cancelled turn that
+                                             never produced an AI reply)
+    [AIMessage(tool_calls=..., content="")] -> NOT first turn (tool-only
+                                             AI turns still count as a reply)
+
+Once the agent has replied at least once, the checkpointer carries the
+injected SystemMessage forward across turns automatically, so re-injecting
+would just duplicate it. Re-sending `custom_instructions` on an already-
+established thread is logged and silently ignored.
 
 The injected SystemMessage is wrapped in
 `<custom_instructions>...</custom_instructions>` XML tags so the agent can
 clearly distinguish user-supplied directives from its own system prompt.
+The middleware writes back to `state["messages"]` — the only AgentState
+key that LangChain's agent node serialises into the LLM context window
+(see langchain.agents.middleware.types.AgentState; `jump_to` and
+`structured_response` are control/output, not prompt input).
 
 Internal deerflow imports: NONE.
 External deps: langchain, langchain_core, langgraph.
